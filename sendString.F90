@@ -1,24 +1,28 @@
 module mathOps
+
+implicit none
+
+integer:: log_error
+attributes(managed) log_error
+
 contains
   attributes(global) subroutine saxpy(x, y, a)
     implicit none
     real :: x(:), y(:)
     real, value :: a
     integer :: i, n
-    character*12 ::message
     n = size(x)
     i = blockDim%x * (blockIdx%x - 1) + threadIdx%x
     if (i <= n) y(i) = y(i) + a*x(i)
-
-    message=' here string'
-    call log(message)
+    call log(1)
   end subroutine saxpy
 
-  attributes(device) subroutine log(str)
-  implicit none
-  character*12, intent(in) ::str
+ attributes(device) subroutine log(error)
+   implicit none
+   integer, intent(in) ::error
    
-  end subroutine log 
+   log_error = 3
+ end subroutine log 
 end module mathOps
 
 program testSaxpy
@@ -29,8 +33,7 @@ program testSaxpy
   real :: x(N), y(N), a
   real, device :: x_d(N), y_d(N)
   type(dim3) :: grid, tBlock
-
-  character*12, device :: message
+  integer :: istat
 
   tBlock = dim3(256,1,1)
   grid = dim3(ceiling(real(N)/tBlock%x),1,1)
@@ -38,10 +41,11 @@ program testSaxpy
   x = 1.0; y = 2.0; a = 2.0
   x_d = x
   y_d = y
-  call saxpy<<<grid, tBlock>>>(x_d, y_d, a)
+  !call saxpy<<<grid, tBlock>>>(x_d, y_d, a)
+  call saxpy<<<1,1>>>(x_d,y_d,a)
   y = y_d
   write(*,*) 'Max error: ', maxval(abs(y-4.0))
 
-  message=' here string'
-  !call log<<<1,1>>>(message)
+  istat = cudaDeviceSynchronize()
+  write(*,*) 'my log thing', log_error  
 end program testSaxpy
