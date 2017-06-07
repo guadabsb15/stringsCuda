@@ -3,7 +3,10 @@ module mathOps
 implicit none
 
 integer, allocatable :: log_error
+integer, allocatable :: place
+
 attributes(managed) log_error
+attributes(managed) place
 
 contains
   attributes(global) subroutine saxpy(x, y, a)
@@ -14,14 +17,16 @@ contains
     n = size(x)
     i = blockDim%x * (blockIdx%x - 1) + threadIdx%x
     if (i <= n) y(i) = y(i) + a*x(i)
-    call log(1)
+    call log(1, i)
   end subroutine saxpy
 
- attributes(device) subroutine log(error)
+ attributes(device) subroutine log(error, ind)
    implicit none
    integer, intent(in) ::error
+   integer, intent(in) :: ind
    
    log_error = error
+   place = ind
  end subroutine log 
 end module mathOps
 
@@ -36,6 +41,8 @@ program testSaxpy
   integer :: istat
 
   allocate(log_error)
+  allocate(place)
+  
   tBlock = dim3(256,1,1)
   grid = dim3(ceiling(real(N)/tBlock%x),1,1)
 
@@ -49,6 +56,8 @@ program testSaxpy
 
   istat = cudaDeviceSynchronize()
   if (log_error>0) write(*,*) 'called the error function', log_error
+  write(*,*) 'place', place
+  deallocate(log_error)
+  deallocate( place)
 
-deallocate(log_error)  
 end program testSaxpy
